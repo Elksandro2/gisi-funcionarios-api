@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15
+    image: postgres:16
     container_name: funcionarios-db
     restart: always
     environment:
@@ -11,6 +11,26 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data_gisi:/var/lib/postgresql/data
+    networks:
+      - postgres_network_gisi
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: gestao-gisi-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "9000:80"
+    volumes:
+      - pgadmin_data_gisi:/var/lib/pgadmin
+    networks:
+      - postgres_network_gisi
 
 volumes:
   postgres_data_gisi:
+  pgadmin_data_gisi:
+
+networks:
+  postgres_network_gisi:
+    driver: bridge
