@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:15
+    container_name: funcionarios-db
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=gestao_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_gisi:/var/lib/postgresql/data
+
+volumes:
+  postgres_data_gisi:

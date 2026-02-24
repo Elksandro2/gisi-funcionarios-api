@@ -1,0 +1,13 @@
+cors:
+  allowedOrigin: http://localhost:5173
+
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    username: admin
+    password: 123456
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/gestao_db
+
+logging:
+  level:
+    br.com.api: DEBUG

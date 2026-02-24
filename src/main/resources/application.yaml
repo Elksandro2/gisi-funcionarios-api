@@ -1,0 +1,23 @@
+app:
+  secret: ${APP_SECRET:secret}
+  baseUri: ${APP_BASE_URI:http://localhost:8080/v1}
+
+spring:
+  profiles:
+    active: ${APP_PROFILE:dev}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  output:
+    ansi:
+      enabled: always
+
+server:
+  port: ${SERVER_PORT:8080}
+
+springdoc:
+  pathsToMatch:
+    - /v1/**
