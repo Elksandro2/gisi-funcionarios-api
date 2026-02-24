@@ -3,6 +3,7 @@ package com.gestao.funcionarios.models.employee.controller;
 import com.gestao.funcionarios.models.employee.dto.EmployeeFilter;
 import com.gestao.funcionarios.models.employee.dto.EmployeeRequest;
 import com.gestao.funcionarios.models.employee.dto.EmployeeResponse;
+import com.gestao.funcionarios.models.employee.dto.EmployeeStats;
 import com.gestao.funcionarios.models.employee.service.EmployeeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -46,6 +47,15 @@ public class EmployeeController {
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<EmployeeResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.findEmployeeById(id));
+    }
+
+    @Operation(summary = "Obter estatísticas globais dos funcionários", responses = {
+            @ApiResponse(responseCode = "200", description = "Estatísticas obtidas com sucesso"),
+            @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
+    })
+    @GetMapping("/stats")
+    public ResponseEntity<EmployeeStats> findStats() {
+        return ResponseEntity.ok(employeeService.findStats());
     }
 
     @Operation(summary = "Cadastrar novo funcionário", responses = {

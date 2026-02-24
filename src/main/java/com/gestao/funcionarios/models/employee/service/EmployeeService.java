@@ -4,6 +4,8 @@ import com.gestao.funcionarios.models.address.entity.Address;
 import com.gestao.funcionarios.models.employee.dto.EmployeeFilter;
 import com.gestao.funcionarios.models.employee.dto.EmployeeRequest;
 import com.gestao.funcionarios.models.employee.dto.EmployeeResponse;
+import com.gestao.funcionarios.models.employee.dto.EmployeeStats;
+import com.gestao.funcionarios.models.employee.dto.EmployeeStats.CountDTO;
 import com.gestao.funcionarios.models.employee.entity.Employee;
 import com.gestao.funcionarios.models.employee.repository.EmployeeRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -30,7 +32,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Page<EmployeeResponse> findAllEmployees(EmployeeFilter filter, Pageable pageable) {
         log.info("Buscando funcionários com filtro: {}", filter);
-        
+
         Specification<Employee> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -53,16 +55,41 @@ public class EmployeeService {
                 predicates.add(cb.lessThanOrEqualTo(root.get("salary"), filter.maxSalary()));
             }
             if (filter.admissionDateStart() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("admissionDate"), LocalDate.parse(filter.admissionDateStart())));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("admissionDate"),
+                        LocalDate.parse(filter.admissionDateStart())));
             }
             if (filter.admissionDateEnd() != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("admissionDate"), LocalDate.parse(filter.admissionDateEnd())));
+                predicates.add(
+                        cb.lessThanOrEqualTo(root.get("admissionDate"), LocalDate.parse(filter.admissionDateEnd())));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
         return employeeRepository.findAll(spec, pageable).map(Employee::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeStats findStats() {
+        var summary = employeeRepository.getGlobalSummary();
+
+        List<CountDTO> genderDist = employeeRepository.getGenderDistribution().stream()
+                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
+
+        List<CountDTO> deptDist = employeeRepository.getDeptDistribution().stream()
+                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
+
+        List<CountDTO> cityDist = employeeRepository.getCityDistribution().stream()
+                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
+
+        List<CountDTO> yearDist = employeeRepository.getAdmissionYearDistribution().stream()
+                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
+
+        return new EmployeeStats(
+                summary.getTotalEmployees(),
+                summary.getTotalSalary(),
+                summary.getAverageSalary(),
+                genderDist, deptDist, cityDist, yearDist);
     }
 
     @Transactional
