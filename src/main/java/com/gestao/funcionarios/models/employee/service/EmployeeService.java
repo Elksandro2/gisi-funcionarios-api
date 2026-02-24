@@ -18,9 +18,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -31,9 +34,63 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public Page<EmployeeResponse> findAllEmployees(EmployeeFilter filter, Pageable pageable) {
-        log.info("Buscando funcionários com filtro: {}", filter);
+        log.info("Buscando funcionários paginados com filtro: {}", filter);
+        Specification<Employee> spec = createSpecification(filter);
+        return employeeRepository.findAll(spec, pageable).map(Employee::toResponse);
+    }
 
-        Specification<Employee> spec = (root, query, cb) -> {
+    @Transactional(readOnly = true)
+    public EmployeeStats findStats(EmployeeFilter filter) {
+        log.info("Calculando estatísticas dinâmicas para o filtro: {}", filter);
+
+        // 1. Busca TODOS os funcionários que atendem ao filtro (ignorando paginação
+        // para o BI)
+        Specification<Employee> spec = createSpecification(filter);
+        List<Employee> filteredEmployees = employeeRepository.findAll(spec);
+
+        // 2. Cálculos Gerais
+        long total = filteredEmployees.size();
+
+        BigDecimal sum = filteredEmployees.stream()
+                .map(Employee::getSalary)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Double avg = total > 0
+                ? sum.divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP).doubleValue()
+                : 0.0;
+
+        // 3. Agrupamentos para os Gráficos
+        List<CountDTO> genderDist = filteredEmployees.stream()
+                .collect(Collectors.groupingBy(e -> e.getGender().name(), Collectors.counting()))
+                .entrySet().stream()
+                .map(entry -> new CountDTO(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+
+        List<CountDTO> deptDist = filteredEmployees.stream()
+                .collect(Collectors.groupingBy(Employee::getDepartment, Collectors.counting()))
+                .entrySet().stream()
+                .map(entry -> new CountDTO(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+
+        List<CountDTO> cityDist = filteredEmployees.stream()
+                .collect(Collectors.groupingBy(e -> e.getAddress().getCity(), Collectors.counting()))
+                .entrySet().stream()
+                .map(entry -> new CountDTO(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+
+        List<CountDTO> yearDist = filteredEmployees.stream()
+                .collect(Collectors.groupingBy(e -> String.valueOf(e.getAdmissionDate().getYear()),
+                        Collectors.counting()))
+                .entrySet().stream()
+                .map(entry -> new CountDTO(entry.getKey(), entry.getValue()))
+                .sorted((a, b) -> a.name().compareTo(b.name()))
+                .collect(Collectors.toList());
+
+        return new EmployeeStats(total, sum, avg, genderDist, deptDist, cityDist, yearDist);
+    }
+
+    private Specification<Employee> createSpecification(EmployeeFilter filter) {
+        return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (filter.name() != null && !filter.name().isBlank()) {
@@ -54,42 +111,17 @@ public class EmployeeService {
             if (filter.maxSalary() != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("salary"), filter.maxSalary()));
             }
-            if (filter.admissionDateStart() != null) {
+            if (filter.admissionDateStart() != null && !filter.admissionDateStart().isBlank()) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("admissionDate"),
                         LocalDate.parse(filter.admissionDateStart())));
             }
-            if (filter.admissionDateEnd() != null) {
+            if (filter.admissionDateEnd() != null && !filter.admissionDateEnd().isBlank()) {
                 predicates.add(
                         cb.lessThanOrEqualTo(root.get("admissionDate"), LocalDate.parse(filter.admissionDateEnd())));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-
-        return employeeRepository.findAll(spec, pageable).map(Employee::toResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public EmployeeStats findStats() {
-        var summary = employeeRepository.getGlobalSummary();
-
-        List<CountDTO> genderDist = employeeRepository.getGenderDistribution().stream()
-                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
-
-        List<CountDTO> deptDist = employeeRepository.getDeptDistribution().stream()
-                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
-
-        List<CountDTO> cityDist = employeeRepository.getCityDistribution().stream()
-                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
-
-        List<CountDTO> yearDist = employeeRepository.getAdmissionYearDistribution().stream()
-                .map(p -> new CountDTO(p.getName() != null ? p.getName().toString() : "N/I", p.getValue())).toList();
-
-        return new EmployeeStats(
-                summary.getTotalEmployees(),
-                summary.getTotalSalary(),
-                summary.getAverageSalary(),
-                genderDist, deptDist, cityDist, yearDist);
     }
 
     @Transactional

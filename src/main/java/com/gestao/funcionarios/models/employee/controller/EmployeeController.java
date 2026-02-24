@@ -54,8 +54,8 @@ public class EmployeeController {
             @ApiResponse(responseCode = "500", description = "Erro interno no servidor")
     })
     @GetMapping("/stats")
-    public ResponseEntity<EmployeeStats> findStats() {
-        return ResponseEntity.ok(employeeService.findStats());
+    public ResponseEntity<EmployeeStats> findStats(@ModelAttribute @Valid EmployeeFilter filter) {
+        return ResponseEntity.ok(employeeService.findStats(filter));
     }
 
     @Operation(summary = "Cadastrar novo funcionário", responses = {
