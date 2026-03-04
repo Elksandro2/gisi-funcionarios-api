@@ -94,7 +94,7 @@ public class EmployeeService {
             List<Predicate> predicates = new ArrayList<>();
 
             if (filter.name() != null && !filter.name().isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("name")), "%" + filter.name().toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("name")), filter.name().toLowerCase() + "%"));
             }
             if (filter.email() != null && !filter.email().isBlank()) {
                 predicates.add(cb.equal(root.get("email"), filter.email()));
