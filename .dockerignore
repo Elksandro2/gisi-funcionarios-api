@@ -1,0 +1,20 @@
+# Git
+.git
+.gitignore
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Build e compilação local (O Dockerfile já vai gerar o dele lá dentro)
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Arquivos de ambiente e segredos
+.env
+.env.*
+docker-compose*.yml
+
+# Documentação
+*.md

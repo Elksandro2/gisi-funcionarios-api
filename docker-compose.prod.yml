@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gisi-funcionarios-api
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - SERVER_PORT=${SERVER_PORT}
+      - SPRING_PROFILES_ACTIVE=${APP_PROFILE}
+      - CORS_ALLOWED_ORIGIN=${CORS_ALLOWED_ORIGIN}
+      - APP_SECRET=${APP_SECRET}
+      - APP_BASE_URI=${APP_BASE_URI}
+    networks:
+      - gisi-network
+
+networks:
+  gisi-network:
+    external: true

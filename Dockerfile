@@ -4,7 +4,6 @@ COPY pom.xml .
 
 RUN mvn dependency:go-offline
 COPY src ./src
-# Compila o projeto ignorando os testes para um deploy mais rápido
 RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
@@ -13,4 +12,4 @@ COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java -Xmx300m -Xss512k -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Xmx300m -Xss512k -XX:+UseParallelGC -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
