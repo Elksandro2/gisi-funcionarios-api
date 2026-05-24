@@ -6,9 +6,7 @@ on:
       - main
       - master
 
-# Define o nome da imagem convertendo o nome do repositório para minúsculas
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/gisi-funcionarios-api:latest
   COMPOSE_PATH: /app/gisi-api
 
 jobs:
@@ -18,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # Necessário para empurrar a imagem para o GitHub Packages
+      packages: write
 
     steps:
       - name: Checkout do código
@@ -27,21 +25,23 @@ jobs:
       - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
 
       - name: Build com Maven (Gera o .jar)
         run: mvn clean package -DskipTests
 
       - name: Autentica no GitHub Container Registry (GHCR)
-        # Usa o token automático do próprio GitHub, sem precisar configurar senhas
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Constrói a imagem Docker e envia para o GHCR
         run: |
-          docker build -t ${{ env.IMAGE_NAME }} .
-          docker push ${{ env.IMAGE_NAME }}
+          # Transforma o nome do usuário/repositório 100% em letras minúsculas dinamicamente
+          LOWER_IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/gisi-funcionarios-api:latest" | tr '[:upper:]' '[:lower:]')
+
+          docker build -t $LOWER_IMAGE_NAME .
+          docker push $LOWER_IMAGE_NAME
 
   # ── 2. Deploy no Servidor ───────────────────────────────────────────────────
   deploy:
@@ -58,18 +58,19 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ${{ env.COMPOSE_PATH }}
-            
-            # O servidor precisa fazer login no GHCR para conseguir baixar a imagem privada
+
+            # Força o nome da imagem para minúsculas dentro do ambiente do seu servidor também
+            LOWER_IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/gisi-funcionarios-api:latest" | tr '[:upper:]' '[:lower:]')
+
+            # O servidor faz o login seguro para ler o pacote privado gerado pelo repositório
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Ajuste dinâmico: garante que o compose do servidor use a imagem que acabamos de subir
-            sed -i 's|build:|image: ${{ env.IMAGE_NAME }} #build:|g' docker-compose.prod.yml
-            
-            # Baixa a imagem nova levemente
+
+            # Modifica dinamicamente o arquivo compose do servidor para usar a imagem pronta do GHCR em vez de tentar compilar
+            sed -i "s|build:|image: $LOWER_IMAGE_NAME #build:|g" docker-compose.prod.yml
+
+            # Puxa a nova versão da imagem silenciosamente e levanta os serviços atualizados
             docker compose -f docker-compose.prod.yml pull
-            
-            # Reinicia o container usando a nova imagem, sem derrubar o serviço
             docker compose -f docker-compose.prod.yml up -d
-            
-            # Limpa imagens antigas não utilizadas para liberar espaço no disco
+
+            # Remove imagens antigas ou corrompidas para economizar o armazenamento do seu SSD
             docker image prune -af
