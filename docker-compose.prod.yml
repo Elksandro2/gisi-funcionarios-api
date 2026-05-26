@@ -1,0 +1,13 @@
+services:
+  api:
+    container_name: gisi-funcionarios-api
+    image: ghcr.io/elksandro2/gisi-funcionarios-api:latest
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - gisi-network
+
+networks:
+  gisi-network:
+    external: true

@@ -1,0 +1,71 @@
+name: CI/CD Pipeline - Produção
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  COMPOSE_PATH: /app/gisi-api
+
+jobs:
+  # ── 1. Build, Test & Push ───────────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Build com Maven (Gera o .jar)
+        run: mvn clean package -DskipTests
+
+      - name: Autentica no GitHub Container Registry (GHCR)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Constrói a imagem Docker e envia para o GHCR
+        run: |
+          LOWER_IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/gisi-funcionarios-api:latest" | tr '[:upper:]' '[:lower:]')
+          docker build -t $LOWER_IMAGE_NAME .
+          docker push $LOWER_IMAGE_NAME
+
+  # ── 2. Deploy no Servidor ───────────────────────────────────────────────────
+  deploy:
+    name: Deploy na DigitalOcean
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Conecta via SSH e Atualiza os Containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ${{ env.COMPOSE_PATH }}
+
+            # Prática Sênior: Atualiza o diretório local trazendo o compose limpo do repositório
+            git pull origin main
+
+            # Autentica o servidor para baixar o novo pacote privado gerado
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Puxa a imagem atualizada e recria o container sem downtime
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+
+            # Limpa o lixo de imagens antigas do disco
+            docker image prune -af
