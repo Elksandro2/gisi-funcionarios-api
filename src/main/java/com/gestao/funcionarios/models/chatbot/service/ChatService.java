@@ -42,47 +42,31 @@ public class ChatService {
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
-    // DTO simplificado para reduzir consumo de tokens na API da Groq
-    private record EmployeeChatDto(
-        String nome,
-        String email,
-        String genero,
-        String cargo,
-        String departamento,
-        java.math.BigDecimal salario,
-        String admissao,
-        String cidade
-    ) {}
-
     public ChatResponse askAssistant(ChatRequest request) {
-        // 1. Buscar os funcionários e mapear para estrutura leve
+        // 1. Buscar os funcionários
         List<Employee> employees = employeeRepository.findAll();
-        List<EmployeeChatDto> employeeResponses = employees.stream()
-                .map(e -> new EmployeeChatDto(
-                        e.getName(),
-                        e.getEmail(),
-                        e.getGender() != null ? e.getGender().name() : null,
-                        e.getRole(),
-                        e.getDepartment(),
-                        e.getSalary(),
-                        e.getAdmissionDate() != null ? e.getAdmissionDate().toString() : null,
-                        e.getAddress() != null ? e.getAddress().getCity() : null
-                ))
-                .collect(Collectors.toList());
 
-        // Serializar a lista para JSON
-        String employeesJson;
-        try {
-            employeesJson = objectMapper.writeValueAsString(employeeResponses);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("Erro ao processar dados dos funcionários para o Chatbot.", e);
+        // Formatar em texto compacto (PSV) para economizar tokens
+        StringBuilder sb = new StringBuilder();
+        sb.append("Nome|Email|Genero|Cargo|Departamento|Salario|Admissao|Cidade\n");
+        for (Employee e : employees) {
+            sb.append(e.getName() != null ? e.getName() : "").append("|")
+              .append(e.getEmail() != null ? e.getEmail() : "").append("|")
+              .append(e.getGender() != null ? e.getGender().name() : "").append("|")
+              .append(e.getRole() != null ? e.getRole() : "").append("|")
+              .append(e.getDepartment() != null ? e.getDepartment() : "").append("|")
+              .append(e.getSalary() != null ? e.getSalary().toString() : "0").append("|")
+              .append(e.getAdmissionDate() != null ? e.getAdmissionDate().toString() : "").append("|")
+              .append(e.getAddress() != null && e.getAddress().getCity() != null ? e.getAddress().getCity() : "")
+              .append("\n");
         }
+        String employeesPsv = sb.toString();
 
-        // 2. Montar o System Prompt forte com as regras e os dados reais
+        // 2. Montar o System Prompt forte com as regras e os dados compactados
         String systemPrompt = "Você é um assistente virtual exclusivo do sistema de gestão de funcionários GISI. " +
-                "Responda apenas perguntas sobre os funcionários listados no JSON fornecido. " +
+                "Responda apenas perguntas sobre os funcionários listados no formato delimitado por barras (|) fornecido abaixo. " +
                 "Não invente dados e recuse educadamente perguntas fora do escopo do sistema GISI.\n\n" +
-                "JSON de Funcionários:\n" + employeesJson;
+                "Funcionários (Nome|Email|Genero|Cargo|Departamento|Salario|Admissao|Cidade):\n" + employeesPsv;
 
         // 3. Montar a requisição HTTP seguindo a especificação OpenAI
         HttpHeaders headers = new HttpHeaders();
