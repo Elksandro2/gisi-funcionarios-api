@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.gestao.funcionarios.models.chatbot.dto.ChatRequest;
 import com.gestao.funcionarios.models.chatbot.dto.ChatResponse;
 import com.gestao.funcionarios.models.employee.dto.EmployeeResponse;
@@ -35,10 +36,10 @@ public class ChatService {
     @Value("${ai.api.model}")
     private String apiModel;
 
-    public ChatService(EmployeeRepository employeeRepository, ObjectMapper objectMapper) {
+    public ChatService(EmployeeRepository employeeRepository) {
         this.employeeRepository = employeeRepository;
         this.restTemplate = new RestTemplate();
-        this.objectMapper = objectMapper;
+        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
     public ChatResponse askAssistant(ChatRequest request) {
