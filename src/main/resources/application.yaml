@@ -32,6 +32,6 @@ springdoc:
 
 ai:
   api:
-    url: https://api.groq.com/openai/v1/chat/completions
-    key: ${GROQ_API_KEY}
-    model: llama-3.1-8b-instant
+    url: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+    key: ${GEMINI_API_KEY}
+    model: gemini-3.5-flash
