@@ -42,11 +42,32 @@ public class ChatService {
         this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
+    // DTO simplificado para reduzir consumo de tokens na API da Groq
+    private record EmployeeChatDto(
+        String nome,
+        String email,
+        String genero,
+        String cargo,
+        String departamento,
+        java.math.BigDecimal salario,
+        String admissao,
+        String cidade
+    ) {}
+
     public ChatResponse askAssistant(ChatRequest request) {
-        // 1. Buscar os funcionários
+        // 1. Buscar os funcionários e mapear para estrutura leve
         List<Employee> employees = employeeRepository.findAll();
-        List<EmployeeResponse> employeeResponses = employees.stream()
-                .map(Employee::toResponse)
+        List<EmployeeChatDto> employeeResponses = employees.stream()
+                .map(e -> new EmployeeChatDto(
+                        e.getName(),
+                        e.getEmail(),
+                        e.getGender() != null ? e.getGender().name() : null,
+                        e.getRole(),
+                        e.getDepartment(),
+                        e.getSalary(),
+                        e.getAdmissionDate() != null ? e.getAdmissionDate().toString() : null,
+                        e.getAddress() != null ? e.getAddress().getCity() : null
+                ))
                 .collect(Collectors.toList());
 
         // Serializar a lista para JSON
