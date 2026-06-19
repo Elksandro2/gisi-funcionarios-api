@@ -1,6 +1,7 @@
 package com.gestao.funcionarios.models.chatbot.service;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -70,14 +71,26 @@ public class ChatService {
         HttpEntity<GroqRequest> httpEntity = new HttpEntity<>(groqRequest, headers);
 
         try {
-            ResponseEntity<GroqResponse> responseEntity = restTemplate.postForEntity(apiUrl, httpEntity, GroqResponse.class);
-            if (responseEntity.getBody() != null && !responseEntity.getBody().choices().isEmpty()) {
-                return new ChatResponse(responseEntity.getBody().choices().get(0).message().content());
+            // Consome como Map para ignorar qualquer propriedade extra do Gemini
+            ResponseEntity<Map> responseEntity = restTemplate.postForEntity(apiUrl, httpEntity, Map.class);
+            Map<?, ?> body = responseEntity.getBody();
+            
+            if (body != null && body.containsKey("choices")) {
+                List<?> choices = (List<?>) body.get("choices");
+                if (!choices.isEmpty()) {
+                    Map<?, ?> firstChoice = (Map<?, ?>) choices.get(0);
+                    Map<?, ?> message = (Map<?, ?>) firstChoice.get("message");
+                    String content = (String) message.get("content");
+                    return new ChatResponse(content);
+                }
             }
-            return new ChatResponse("A IA não retornou resposta.");
+            return new ChatResponse("A IA não retornou resposta válida.");
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("Erro retornado pela API do Gemini ({}): {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new IllegalStateException("Falha na API de IA: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Erro fatal na IA: ", e);
-            throw new IllegalStateException("Erro ao comunicar com a IA.");
+            log.error("Erro inesperado no processamento da IA: ", e);
+            throw new IllegalStateException("Falha na comunicação com o assistente.");
         }
     }
 
