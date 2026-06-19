@@ -32,4 +32,9 @@ public class ChatController {
         ChatResponse response = chatService.askAssistant(request);
         return ResponseEntity.ok(response);
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ChatResponse> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity.status(500).body(new ChatResponse("Erro no Assistente: " + ex.getMessage()));
+    }
 }
