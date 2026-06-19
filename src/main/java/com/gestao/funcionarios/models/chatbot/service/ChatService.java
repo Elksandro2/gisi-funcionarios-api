@@ -1,6 +1,8 @@
 package com.gestao.funcionarios.models.chatbot.service;
 
 import java.util.List;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -44,8 +46,26 @@ public class ChatService {
     }
 
     public ChatResponse askAssistant(ChatRequest request) {
-        // 1. Buscar os funcionários
-        List<Employee> employees = employeeRepository.findAll().stream().limit(100).toList();
+        // 1. Obter estatísticas agregadas reais do banco de dados
+        EmployeeRepository.EmployeeSummary summary = employeeRepository.getGlobalSummary();
+        List<EmployeeRepository.ChartProjection> deptDistribution = employeeRepository.getDeptDistribution();
+
+        long totalEmployees = summary.getTotalEmployees();
+        BigDecimal totalSalary = summary.getTotalSalary();
+        double avgSalaryVal = summary.getAverageSalary() != null ? summary.getAverageSalary() : 0.0;
+        BigDecimal averageSalary = BigDecimal.valueOf(avgSalaryVal).setScale(2, RoundingMode.HALF_UP);
+
+        StringBuilder deptSb = new StringBuilder();
+        for (EmployeeRepository.ChartProjection proj : deptDistribution) {
+            if (deptSb.length() > 0) {
+                deptSb.append(", ");
+            }
+            deptSb.append(proj.getName()).append(": ").append(proj.getValue());
+        }
+        String deptDistributionStr = deptSb.toString();
+
+        // 2. Buscar amostra limitada de funcionários para contexto individual
+        List<Employee> employees = employeeRepository.findAll().stream().limit(50).toList();
 
         StringBuilder sb = new StringBuilder();
         sb.append("Nome|G|Cargo|Depto|Salario|Admissao\n");
@@ -64,25 +84,26 @@ public class ChatService {
         }
         String employeesPsv = sb.toString();
 
-        // 2. Montar o System Prompt
+        // 3. Montar o System Prompt
         String systemPrompt = "Você é um assistente virtual exclusivo do sistema de gestão de funcionários GISI. " +
-                "Responda apenas perguntas sobre os funcionários listados no formato delimitado por barras (|) fornecido abaixo. "
-                +
                 "Não invente dados e recuse educadamente perguntas fora do escopo do sistema GISI.\n\n" +
+                "ESTATÍSTICAS GLOBAIS DA EMPRESA (REAIS E ATUALIZADAS):\n" +
+                "- Total de funcionários cadastrados: " + totalEmployees + "\n" +
+                "- Média Salarial Global: R$ " + averageSalary + "\n" +
+                "- Total da Folha de Pagamento: R$ " + totalSalary + "\n" +
+                "- Distribuição de Funcionários por Departamento: [" + deptDistributionStr + "]\n\n" +
+                "Sempre que perguntarem sobre totais de funcionários, médias salariais gerais ou distribuições de departamentos, " +
+                "use estritamente os dados da seção ESTATÍSTICAS GLOBAIS para responder com precisão matemática absoluta.\n\n" +
                 "Regras estritas de resposta:\n" +
-                "1. Seja extremamente conciso, direto e amigável. Responda diretamente à pergunta sem explicações longas ou textos desnecessários.\n"
-                +
-                "2. Para cálculos (médias, somas, contagens), liste os valores individuais correspondentes em uma linha antes de fazer a conta, garantindo precisão matemática absoluta.\n"
-                +
-                "3. Use a coluna G (M para masculino, F para feminino) para responder sobre gênero de forma precisa.\n"
-                +
-                "4. Se o usuário solicitar distribuições, comparações, médias de departamentos ou relatórios estatísticos, gere um gráfico interativo inserindo a tag XML abaixo no meio da sua resposta:\n"
-                +
+                "1. Seja extremamente conciso, direto e amigável. Responda diretamente à pergunta sem explicações longas ou textos desnecessários.\n" +
+                "2. Use os dados da seção de estatísticas globais para qualquer questão agregada global.\n" +
+                "3. Use a coluna G (M para masculino, F para feminino) para responder sobre gênero de forma precisa.\n" +
+                "4. Se o usuário solicitar distribuições, comparações, médias de departamentos ou relatórios estatísticos, gere um gráfico interativo inserindo a tag XML abaixo no meio da sua resposta:\n" +
                 "   <chart type=\"bar|pie\" title=\"Título do Gráfico\">\n" +
                 "   [{\"name\": \"Nome 1\", \"value\": 10}, {\"name\": \"Nome 2\", \"value\": 5}]\n" +
                 "   </chart>\n" +
                 "   Use type=\"bar\" para distribuições gerais e type=\"pie\" para proporções pequenas.\n\n" +
-                "Funcionários (Nome|G|Cargo|Departamento|Salario|Admissao):\n" + employeesPsv;
+                "Amostra de Funcionários para Contexto de Cargos/Nomes (Nome|G|Cargo|Departamento|Salario|Admissao):\n" + employeesPsv;
 
         // 3. Montar a requisição HTTP para a API do DeepSeek
         HttpHeaders headers = new HttpHeaders();
