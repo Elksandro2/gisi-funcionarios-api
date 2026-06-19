@@ -91,7 +91,6 @@ public class ChatService {
 
         GroqRequest groqRequest = new GroqRequest(
                 apiModel,
-                "medium",
                 List.of(
                         new GroqMessage("system", systemPrompt),
                         new GroqMessage("user", request.message())));
@@ -121,7 +120,7 @@ public class ChatService {
         }
     }
 
-    public record GroqRequest(String model, String reasoning_effort, List<GroqMessage> messages) {
+    public record GroqRequest(String model, List<GroqMessage> messages) {
     }
 
     public record GroqMessage(String role, String content) {

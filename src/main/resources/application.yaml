@@ -34,4 +34,4 @@ ai:
   api:
     url: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
     key: ${GEMINI_API_KEY}
-    model: gemini-3.5-flash
+    model: gemini-1.5-flash
