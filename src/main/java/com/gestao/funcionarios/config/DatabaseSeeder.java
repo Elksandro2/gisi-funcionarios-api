@@ -28,12 +28,6 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        long count = employeeRepository.count();
-        if (count > 0) {
-            log.info("O banco de dados já possui {} funcionários cadastrados. Pulando população inicial.", count);
-            return;
-        }
-
         log.info("Iniciando população automática do banco de dados...");
 
         // Dados base para geração realista

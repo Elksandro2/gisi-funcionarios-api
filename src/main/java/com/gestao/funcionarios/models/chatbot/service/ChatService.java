@@ -31,7 +31,7 @@ public class ChatService {
     @Value("${ai.api.url}")
     private String apiUrl;
 
-    @Value("${ai.api.key}")
+    @Value("${ai.api.key:${GEMINI_API_KEY:}}")
     private String apiKey;
 
     @Value("${ai.api.model}")
