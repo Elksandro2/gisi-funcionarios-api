@@ -45,7 +45,7 @@ public class ChatService {
 
     public ChatResponse askAssistant(ChatRequest request) {
         // 1. Buscar os funcionários
-        List<Employee> employees = employeeRepository.findAll();
+        List<Employee> employees = employeeRepository.findAll().stream().limit(100).toList();
 
         StringBuilder sb = new StringBuilder();
         sb.append("Nome|G|Cargo|Depto|Salario|Admissao\n");
