@@ -6,6 +6,7 @@ import com.gestao.funcionarios.models.employee.enums.GenderEnum;
 import com.gestao.funcionarios.models.employee.repository.EmployeeRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,20 +20,35 @@ import java.util.Random;
 public class DatabaseSeeder implements CommandLineRunner {
 
     private final EmployeeRepository employeeRepository;
+    private final Environment environment;
     private final Random random = new Random();
 
-    public DatabaseSeeder(EmployeeRepository employeeRepository) {
+    public DatabaseSeeder(EmployeeRepository employeeRepository, Environment environment) {
         this.employeeRepository = employeeRepository;
+        this.environment = environment;
     }
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (employeeRepository.count() > 0) {
-            log.info("Banco já possui dados. Pulando execução do seeder.");
-            return;
+        long currentCount = employeeRepository.count();
+        boolean isProd = java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
+
+        if (isProd) {
+            if (currentCount > 300) {
+                log.info("Aviso: Ambiente de Produção detectado. Limpando banco com {} funcionários e recriando apenas 125...", currentCount);
+                employeeRepository.deleteAll();
+            } else {
+                log.info("Ambiente de Produção detectado. Banco possui {} funcionários. O seeder NÃO será executado.", currentCount);
+                return;
+            }
+        } else {
+            if (currentCount > 0) {
+                log.info("Banco já possui dados ({} funcionários). Pulando execução do seeder.", currentCount);
+                return;
+            }
+            log.info("Iniciando população automática do banco de dados (Ambiente Não-Prod)...");
         }
-        log.info("Iniciando população automática do banco de dados...");
 
         // Dados base para geração realista
         String[] firstNamesMale = {
@@ -87,7 +103,7 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         String[] states = {"SP", "RJ", "MG", "PR", "RS", "BA", "PE", "CE", "DF", "SP"};
 
-        int totalToGenerate = 150;
+        int totalToGenerate = 125;
 
         for (int i = 1; i <= totalToGenerate; i++) {
             // Determinar Gênero e Nome
