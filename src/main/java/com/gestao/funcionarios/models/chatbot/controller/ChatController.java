@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/v1/chat")
+@RequestMapping("/v1/assistant")
 @Tag(name = "Chatbot IA", description = "Endpoint para comunicação com o assistente virtual do GISI")
 public class ChatController {
 
